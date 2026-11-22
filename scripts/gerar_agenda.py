@@ -273,6 +273,56 @@ def guia_completo():
     return saida
 
 
+def sobrenomes(nome):
+    """'Theo Arribage / Albano Olivetti' -> 'Arribage/Olivetti'; 'Carlos Alcaraz' -> 'Alcaraz'."""
+    return "/".join(p.split()[-1] for p in nome.split(" / ") if p.split())
+
+
+def partidas_tenis(datas):
+    """Partidas de ATP e WTA da ESPN (o guia só diz o torneio, a ESPN diz quem joga)."""
+    saida, vistos = [], set()
+    for lg in ("tennis/atp", "tennis/wta"):
+        for d in datas:
+            txt = baixar(f"https://site.api.espn.com/apis/site/v2/sports/{lg}/scoreboard?dates={d}")
+            if not txt:
+                continue
+            for e in json.loads(txt).get("events", []):
+                for g in e.get("groupings", []):
+                    tipo = norm(g.get("grouping", {}).get("displayName", ""))
+                    for c in g.get("competitions", []):
+                        if c["id"] in vistos or len(c.get("competitors", [])) != 2:
+                            continue
+                        vistos.add(c["id"])
+                        nomes = [(x.get("athlete") or x.get("roster") or {}).get("displayName", "") for x in c["competitors"]]
+                        if not all(nomes):
+                            continue
+                        ini = datetime.fromisoformat(c["date"].replace("Z", "+00:00"))
+                        saida.append({
+                            "lg": lg, "id": c["id"], "ini": ini,
+                            "duplas": "doubles" in tipo, "rodada": c.get("round", {}).get("displayName", ""),
+                            "t": f"{sobrenomes(nomes[0])} x {sobrenomes(nomes[1])}",
+                            "d": ini.astimezone(NOVA_YORK).strftime("%Y%m%d"),
+                        })
+    return saida
+
+
+def casar_tenis(titulo, ini, partidas, usadas):
+    """A partida da ESPN que é este programa do guia: mesmo tipo (simples/duplas), mesma fase, horário perto."""
+    t = norm(titulo)
+    duplas = "duplas" in t
+    fase = "final" if re.search(r"\bfinal\b", t) and "semi" not in t else "semifinal" if "semi" in t else None
+    melhor = None
+    for m in partidas:
+        if m["id"] in usadas or m["duplas"] != duplas:
+            continue
+        if fase and norm(m["rodada"]).strip() != fase:
+            continue
+        delta = abs((m["ini"] - ini).total_seconds()) / 60
+        if delta <= 90 and (melhor is None or delta < melhor[0]):
+            melhor = (delta, m)
+    return melhor[1] if melhor else None
+
+
 def limpar_titulo(t):
     t = re.sub(r"\s*-\s*Ao Vivo\s*$", "", t, flags=re.I)
     return re.sub(r"\s+", " ", t).strip()
@@ -366,6 +416,9 @@ def main():
     guia = [g for g in guia_completo() if inicio - timedelta(hours=1) <= g["ini"] < fim]
     print(f"  {len(guia)} transmissões ao vivo de esporte", file=sys.stderr)
 
+    tenis = partidas_tenis(datas_et)
+    print(f"  {len(tenis)} partidas de tênis na ESPN", file=sys.stderr)
+
     usados = set()
     eventos = []
     sem_canal = 0
@@ -399,6 +452,7 @@ def main():
 
     # extras: o que o guia tem ao vivo e não casou com a ESPN
     extras = {}
+    tenis_usadas = set()
     for g in guia:
         if id(g) in usados:
             continue
@@ -424,6 +478,15 @@ def main():
             "ch": [[g["canal"], "tv", "c"]], "s": estrelas(sc), "sc": sc,
             "_ini": g["ini"], "_tit": titulo,
         }
+        if extras[chave]["g"] == "tenis":
+            m = casar_tenis(titulo, g["ini"], tenis, tenis_usadas)
+            if m:
+                tenis_usadas.add(m["id"])
+                x = extras[chave]
+                x["n"] = t  # ex.: "Final Duplas"
+                x["t"] = m["t"]  # ex.: "Alcaraz x Zverev"
+                x["id"] = "espn-" + m["id"]
+                x["e"] = {"lg": m["lg"], "id": m["id"], "d": m["d"]}
     for x in extras.values():
         del x["_ini"], x["_tit"]
     eventos += list(extras.values())

@@ -395,6 +395,28 @@ h2 .count { color: var(--ink); }
   }
   function ptDetail(s) { for (const [r, t] of DETAIL) if (r.test(s)) return s.replace(r, t); return s; }
 
+  // tênis: a ESPN agrupa as partidas do torneio; placar = sets ganhos, detalhe = games de cada set
+  function sobrenomes(n) { return (n || '').split(' / ').map(p => p.trim().split(' ').pop()).join('/'); }
+  function tenis(js) {
+    for (const ev of js.events || []) for (const g of ev.groupings || []) for (const c of g.competitions || []) {
+      const [a, b] = c.competitors || [];
+      if (!a || !b) continue;
+      const st = c.status.type;
+      const la = a.linescores || [], lb = b.linescores || [];
+      let sa = 0, sb = 0;
+      const sets = la.map((x, i) => {
+        const y = lb[i] || {}; const va = +x.value, vb = +y.value;
+        if (st.state === 'post' || i < la.length - 1) { if (va > vb) sa++; else if (vb > va) sb++; }
+        return `${va}-${vb}`;
+      });
+      const nome = x => sobrenomes((x.athlete || x.roster || {}).displayName);
+      S.live['espn-' + c.id] = {
+        state: st.state, detail: st.state === 'in' ? sets.join(' · ') : '', pct: null,
+        home: { name: nome(a), score: st.state === 'pre' ? null : sa },
+        away: { name: nome(b), score: st.state === 'pre' ? null : sb },
+      };
+    }
+  }
   async function poll() {
     if (!S.events.length) return;
     const now = Date.now();
@@ -412,6 +434,7 @@ h2 .count { color: var(--ink); }
         const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${lg}/scoreboard?dates=${d}&limit=200`);
         if (!r.ok) return;
         const js = await r.json();
+        if (lg.startsWith('tennis/')) { tenis(js); return; }
         for (const ev of js.events || []) {
           const c = ev.competitions[0];
           const home = c.competitors.find(t => t.homeAway === 'home') || c.competitors[0];
