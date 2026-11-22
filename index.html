@@ -293,7 +293,8 @@ h2 .count { color: var(--ink); }
     if (live && l && l.detail) when = `<span class="clockline">${esc(l.detail)}</span>`;
     else if (live) when = `começou às ${fTime.format(e.start)}, há ${dur((now - e.start) / 60000)}`;
     else when = `às ${fTime.format(e.start)}, daqui a ${dur((e.start - now) / 60000)}`;
-    const pct = live && !(l && l.detail) ? Math.min(100, Math.max(2, (now - e.start) / (e.end - e.start) * 100)) : 0;
+    const real = l && l.state === 'in' && l.pct != null ? l.pct : null;
+    const pct = !live ? 0 : Math.min(100, Math.max(2, real != null ? real : (now - e.start) / (e.end - e.start) * 100));
     return `<article class="card ${live ? 'is-live' : ''}">
       <div class="meta">${stars(e)}${sportTag(e)}<span class="num">${when}</span></div>
       ${live ? board(e) : `<div class="title">${esc(e.t)}</div>`}
@@ -380,6 +381,18 @@ h2 .count { color: var(--ink); }
   // ---------------------------------------------------------------- placar ao vivo (ESPN)
   const DETAIL = [[/^([\d:.]+) - (\d)(st|nd|rd|th)$/i, '$2º quarto · $1'], [/^([\d:.]+) - OT$/i, 'Prorrogação · $1'], [/^HT$|^Halftime$/i, 'Intervalo'], [/^FT$|^Final$|^Full Time$/i, 'Encerrado'], [/^End of (\d)(st|nd|rd|th)$/i, 'Fim do $1º'],
     [/^Q(\d) /, '$1º Q '], [/^(\d)(st|nd|rd|th) /, '$1º '], [/OT/, 'Prorrogação'], [/^Delayed$/i, 'Atrasado'], [/^Postponed$/i, 'Adiado']];
+  // quanto do jogo já passou, pelo relógio da ESPN (futebol: segundos jogados; NBA/NFL/NHL: tempo que falta no período)
+  const PERIODOS = { 'basketball/nba': [4, 12], 'football/nfl': [4, 15], 'hockey/nhl': [3, 20] };
+  function espnPct(lg, s) {
+    const p = +s.period || 0, c = +s.clock || 0, name = (s.type && s.type.name) || '';
+    if (/HALFTIME/.test(name)) return 50;
+    if (lg.startsWith('soccer/')) return Math.min(100, c / 60 / 90 * 100);
+    const cfg = PERIODOS[lg];
+    if (!cfg || !p) return null;
+    const [n, len] = cfg;
+    if (p > n) return 100;
+    return Math.min(100, ((p - 1) * len + (len - c / 60)) / (n * len) * 100);
+  }
   function ptDetail(s) { for (const [r, t] of DETAIL) if (r.test(s)) return s.replace(r, t); return s; }
 
   async function poll() {
@@ -406,6 +419,7 @@ h2 .count { color: var(--ink); }
           const st = (c.status || ev.status).type;
           S.live['espn-' + ev.id] = {
             state: st.state, detail: st.state === 'in' ? ptDetail(st.shortDetail || '') : '',
+            pct: st.state === 'in' ? espnPct(lg, c.status || ev.status) : null,
             home: { name: home.team.shortDisplayName || home.team.displayName, score: st.state === 'pre' ? null : home.score },
             away: { name: away.team.shortDisplayName || away.team.displayName, score: st.state === 'pre' ? null : away.score },
           };
