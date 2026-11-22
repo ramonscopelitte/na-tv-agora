@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Na TV Agora</title>
+<meta name="description" content="Agenda esportiva da TV brasileira no horário de Lisboa, com os melhores jogos e o placar ao vivo.">
+<meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1320" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Na TV">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: guia de TV em coluna única: relógio de Lisboa, ao vivo com placar, os melhores do dia, a seguir, depois a grade por hora */
+:root {
+  color-scheme: light;
+  --bg: #eef1f5; --surface: #ffffff; --ink: #111a29; --muted: #5c677a; --line: #d9dfe8; --chip: #e4e9f0;
+  --accent: #1d4fd8; --live: #d92b26; --live-soft: #fde7e6; --star: #c98a00;
+  --g-futebol: #2f9e55; --g-motor: #6b7686; --g-basquete: #e07a2e; --g-nfl: #8a5a3c; --g-tenis: #3a7bd5; --g-outros: #8a5cc7;
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c1320; --surface: #141d2d; --ink: #e9eef6; --muted: #8e9ab0; --line: #24314a; --chip: #1f2a3e;
+    --accent: #7ea2ff; --live: #ff514a; --live-soft: #3a1618; --star: #f2b631;
+    --g-futebol: #4cc275; --g-motor: #97a3b4; --g-basquete: #f39a55; --g-nfl: #c08a66; --g-tenis: #6fa3f0; --g-outros: #b18cec;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.4; }
+.wrap {
+  max-width: 760px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 48px);
+  display: flex; flex-direction: column; gap: 28px;
+}
+.num { font-variant-numeric: tabular-nums; }
+
+.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.top h1 { font-family: var(--f-display); font-weight: 700; font-size: 2rem; line-height: 1; margin: 0; letter-spacing: .01em; }
+.top .sub { color: var(--muted); margin-top: 6px; }
+.clock { text-align: right; }
+.clock b { font-family: var(--f-display); font-weight: 600; font-size: 2.6rem; line-height: 1; display: block; }
+.clock span { color: var(--muted); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+
+.notice { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; color: var(--muted); }
+.notice strong { color: var(--ink); }
+
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 1.05rem; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+h2 .count { color: var(--ink); }
+
+.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.card.is-live { border-color: color-mix(in srgb, var(--live) 45%, var(--line)); }
+.card .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
+.card .title { font-family: var(--f-display); font-weight: 600; font-size: 1.35rem; line-height: 1.15; }
+.bar { height: 4px; background: var(--chip); border-radius: 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--live); }
+.empty { color: var(--muted); margin: 0 0 10px; }
+
+/* placar */
+.board { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: baseline; }
+.board .tm { font-family: var(--f-display); font-weight: 600; font-size: 1.3rem; line-height: 1.15; min-width: 0; overflow-wrap: anywhere; }
+.board .pt { font-family: var(--f-display); font-weight: 700; font-size: 1.6rem; line-height: 1.1; text-align: right; }
+.board .lead { color: var(--ink); }
+.board .trail { color: var(--muted); }
+.clockline { font-family: var(--f-display); font-weight: 700; color: var(--live); letter-spacing: .04em; }
+.miniscore { font-family: var(--f-display); font-weight: 700; font-size: 1.05rem; }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-display); font-weight: 700; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
+.pill.live { background: var(--live); color: #fff; }
+.pill.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: blink 1.4s infinite; }
+.pill.soon { background: var(--chip); color: var(--ink); }
+.pill.end { background: var(--chip); color: var(--muted); }
+@keyframes blink { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .pill.live::before { animation: none; } }
+
+.sport { display: inline-flex; align-items: center; gap: 6px; }
+.sport::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--muted)); flex: none; }
+.stars { display: inline-flex; gap: 1px; }
+.star { width: 13px; height: 13px; fill: var(--star); flex: none; }
+
+.chans { display: flex; flex-wrap: wrap; gap: 6px; }
+.ch { font-size: .82rem; font-weight: 600; padding: 3px 8px; border-radius: 5px; line-height: 1.2; white-space: nowrap; }
+.ch.tv { background: var(--ink); color: var(--surface); }
+.ch.web, .ch.yt { border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
+.ch.yt::before { content: ""; display: inline-block; width: 0; height: 0; border-left: 6px solid var(--live); border-top: 4px solid transparent; border-bottom: 4px solid transparent; margin-right: 5px; vertical-align: 1px; }
+.ch.prob { background: transparent; color: var(--muted); border: 1px dashed var(--muted); }
+.ch.prob::after { content: "?"; margin-left: 2px; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); align-items: center; }
+.legend .ch { font-size: .75rem; }
+
+.list { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+
+.filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.filters::-webkit-scrollbar { display: none; }
+.filters button {
+  font: 600 .88rem var(--f-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.filters button:focus-visible, .toggle:focus-visible, .score:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.day-label { font-family: var(--f-display); font-weight: 700; font-size: 1.3rem; padding: 18px 0 0; }
+.hour-label { font-family: var(--f-display); font-weight: 700; font-size: .9rem; color: var(--muted); letter-spacing: .06em; padding: 14px 0 6px; }
+.row { display: grid; grid-template-columns: 58px 1fr; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.list .row:first-child { border-top: 0; }
+.row .time { font-family: var(--f-display); font-weight: 600; font-size: 1.25rem; line-height: 1.1; }
+.row .time small { display: block; font-family: var(--f-body); font-weight: 600; font-size: .7rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; margin-top: 2px; }
+.row .body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.row .comp { font-size: .82rem; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row .t { font-weight: 600; font-size: 1.02rem; overflow-wrap: anywhere; }
+.row .note, .card .note { font-size: .85rem; color: var(--muted); }
+.row.is-live { background: var(--live-soft); }
+.row.is-ended { opacity: .5; }
+.row.top3 .t { font-weight: 700; }
+.row-end { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+.score { align-self: flex-start; font-weight: 600; font-size: .85rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.score:hover { text-decoration: underline; }
+.card .score { background: var(--ink); color: var(--surface); padding: 7px 12px; border-radius: 6px; }
+.card.is-live .score { background: var(--live); color: #fff; }
+
+.toggle { font: 600 .88rem var(--f-body); color: var(--accent); background: none; border: 0; padding: 8px 0; cursor: pointer; text-align: left; }
+.foot { color: var(--muted); font-size: .82rem; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 16px; }
+.err { color: var(--live); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Na TV Agora</h1>
+      <div class="sub" id="dayLabel">Agenda esportiva da TV brasileira</div>
+    </div>
+    <div class="clock"><b class="num" id="clock">--:--</b><span>Hora de Lisboa</span></div>
+  </header>
+
+  <div class="notice" id="stale" hidden></div>
+
+  <section aria-labelledby="liveH">
+    <h2 id="liveH"><span class="pill live">Ao vivo</span> <span class="count" id="liveCount"></span></h2>
+    <div id="liveBox"><p class="empty">Carregando a agenda…</p></div>
+  </section>
+
+  <section id="bestSec" aria-labelledby="bestH" hidden>
+    <h2 id="bestH">Os melhores de hoje</h2>
+    <div class="list" id="bestBox"></div>
+  </section>
+
+  <section id="soonSec" aria-labelledby="soonH" hidden>
+    <h2 id="soonH">Começa nas próximas 3 horas</h2>
+    <div class="list" id="soonBox"></div>
+  </section>
+
+  <section aria-labelledby="dayH">
+    <h2 id="dayH">Agenda completa</h2>
+    <div class="filters" id="filters" role="group" aria-label="Filtrar por esporte"></div>
+    <button class="toggle" id="endedToggle" type="button" hidden></button>
+    <div id="dayBox"></div>
+  </section>
+
+  <footer class="foot">
+    <div class="legend">
+      <span><span class="ch tv">TV</span> canal de TV</span>
+      <span><span class="ch web">Streaming</span> app ou site</span>
+      <span><span class="ch yt">YouTube</span> canal no YouTube</span>
+      <span><span class="ch prob">Canal</span> provável, não confirmado</span>
+    </div>
+    <span>Canais confirmados pela programação do meuguia.tv; jogos, placares e "provável" pela ESPN e pela tabela de direitos. Estrelas: o quanto vale a pena assistir.</span>
+    <span id="srcLine"></span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const TZ = 'Europe/Lisbon';
+  const GROUPS = [['todos', 'Todos'], ['melhores', 'Melhores'], ['futebol', 'Futebol'], ['basquete', 'Basquete'],
+    ['nfl', 'NFL'], ['motor', 'Motor'], ['tenis', 'Tênis'], ['outros', 'Outros']];
+  const STAR = '<svg class="star" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.5l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L1.4 7.8l6-.8z"/></svg>';
+
+  const fTime = new Intl.DateTimeFormat('pt-PT', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const fDay = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const fLong = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
+  const fWk = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: 'short' });
+  const fHour = new Intl.DateTimeFormat('pt-PT', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23' });
+  const fHourNum = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: 'numeric', hourCycle: 'h23' });
+
+  const S = { filter: 'todos', showEnded: false, data: null, events: [], live: {}, lastPoll: 0 };
+  try { const f = localStorage.getItem('natv.filter'); if (f && GROUPS.some(g => g[0] === f)) S.filter = f; } catch (e) {}
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function dur(min) {
+    if (min < 1) return 'menos de 1 min';
+    const h = Math.floor(min / 60), m = Math.round(min % 60);
+    if (!h) return m + ' min';
+    return m ? h + 'h' + String(m).padStart(2, '0') : h + 'h';
+  }
+  // Dia da agenda: um jogo entre 0h e 6h conta como "hoje" se for a madrugada que segue o dia de hoje
+  function tvDay(d) {
+    const today = fDay.format(new Date());
+    const cal = fDay.format(d);
+    if (+fHourNum.format(d) < 6) {
+      const prev = fDay.format(new Date(+d - 6 * 3600e3));
+      if (prev >= today) return prev;
+    }
+    return cal;
+  }
+
+  function status(e, now) {
+    const l = S.live[e.id];
+    if (l) {
+      if (l.state === 'in') return 'live';
+      if (l.state === 'post') return 'ended';
+      if (l.state === 'pre' && now >= e.start && now < +e.start + 3 * 3600e3) return 'soon';
+    }
+    if (now < e.start) return 'soon';
+    if (now < e.end) return 'live';
+    return 'ended';
+  }
+  function matches(e) {
+    if (S.filter === 'todos') return true;
+    if (S.filter === 'melhores') return e.s >= 2;
+    return e.g === S.filter;
+  }
+
+  function stars(e) { return e.s >= 2 ? `<span class="stars" aria-label="${e.s} estrelas">${STAR.repeat(e.s)}</span>` : ''; }
+  function chans(list) {
+    return '<div class="chans">' + list.map(([n, k, c]) =>
+      `<span class="ch ${esc(k)}${c === 'p' ? ' prob' : ''}"${c === 'p' ? ' title="Canal provável"' : ''}>${esc(n)}</span>`).join('') + '</div>';
+  }
+  function sportTag(e) { return `<span class="sport" style="--dot: var(--g-${esc(e.g)})">${esc(e.c)}</span>`; }
+  function scoreLink(e, label) {
+    if (!e.x || !/^https:\/\/www\.espn\.com\.br\//.test(e.x)) return '';
+    return `<a class="score" href="${esc(e.x)}" target="_blank" rel="noopener noreferrer">${label} <span aria-hidden="true">↗</span></a>`;
+  }
+  function timeCell(e, base) {
+    const tag = fDay.format(e.start) !== base ? `<small>${esc(fWk.format(e.start).replace('.', ''))}</small>` : '';
+    return `<div class="time num">${fTime.format(e.start)}${tag}</div>`;
+  }
+  function miniScore(e) {
+    const l = S.live[e.id];
+    if (!l || l.state === 'pre' || l.home.score == null) return '';
+    return `<span class="miniscore num">${esc(l.home.score)} x ${esc(l.away.score)}</span>`;
+  }
+
+  function rowHTML(e, now, base, mode) {
+    const st = status(e, now);
+    const cls = ['row', st === 'live' ? 'is-live' : '', st === 'ended' ? 'is-ended' : '', e.s >= 3 ? 'top3' : ''].join(' ');
+    let badge = '';
+    if (st === 'live') badge = '<span class="pill live">Ao vivo</span>' + miniScore(e);
+    else if (st === 'ended' && S.live[e.id]) badge = '<span class="pill end">Fim</span>' + miniScore(e);
+    else if (mode === 'countdown') badge = `<span class="pill soon num">em ${dur((e.start - now) / 60000)}</span>`;
+    return `<div class="${cls}">
+      ${timeCell(e, base)}
+      <div class="body">
+        <div class="comp">${stars(e)}${sportTag(e)}${badge}</div>
+        <div class="t">${esc(e.t)}</div>
+        ${e.n ? `<div class="note">${esc(e.n)}</div>` : ''}
+        <div class="row-end">${chans(e.ch)}${scoreLink(e, st === 'live' ? 'Placar' : 'Jogo')}</div>
+      </div>
+    </div>`;
+  }
+
+  function board(e) {
+    const l = S.live[e.id];
+    if (!l || l.home.score == null) return `<div class="title">${esc(e.t)}</div>`;
+    const h = +l.home.score, a = +l.away.score;
+    return `<div class="board num">
+      <span class="tm">${esc(l.home.name)}</span><span class="pt ${h >= a ? 'lead' : 'trail'}">${esc(l.home.score)}</span>
+      <span class="tm">${esc(l.away.name)}</span><span class="pt ${a >= h ? 'lead' : 'trail'}">${esc(l.away.score)}</span>
+    </div>`;
+  }
+
+  function cardHTML(e, now, mode) {
+    const live = mode === 'live';
+    const l = S.live[e.id];
+    let when;
+    if (live && l && l.detail) when = `<span class="clockline">${esc(l.detail)}</span>`;
+    else if (live) when = `começou às ${fTime.format(e.start)}, há ${dur((now - e.start) / 60000)}`;
+    else when = `às ${fTime.format(e.start)}, daqui a ${dur((e.start - now) / 60000)}`;
+    const pct = live && !(l && l.detail) ? Math.min(100, Math.max(2, (now - e.start) / (e.end - e.start) * 100)) : 0;
+    return `<article class="card ${live ? 'is-live' : ''}">
+      <div class="meta">${stars(e)}${sportTag(e)}<span class="num">${when}</span></div>
+      ${live ? board(e) : `<div class="title">${esc(e.t)}</div>`}
+      ${e.n ? `<div class="note">${esc(e.n)}</div>` : ''}
+      ${chans(e.ch)}
+      ${pct ? `<div class="bar" aria-hidden="true"><i style="width:${pct.toFixed(0)}%"></i></div>` : ''}
+      ${scoreLink(e, live ? 'Ver o jogo na ESPN' : 'Ver o jogo na ESPN')}
+    </article>`;
+  }
+
+  function renderFilters() {
+    $('filters').innerHTML = GROUPS.map(([k, label]) => {
+      const n = k === 'todos' ? S.events.length : k === 'melhores' ? S.events.filter(e => e.s >= 2).length : S.events.filter(e => e.g === k).length;
+      if (!n) return '';
+      return `<button type="button" data-k="${k}" aria-pressed="${S.filter === k}">${k === 'melhores' ? STAR : ''}${label}</button>`;
+    }).join('');
+  }
+
+  function render() {
+    const now = new Date();
+    $('clock').textContent = fTime.format(now);
+    if (!S.data) return;
+    const today = fDay.format(now);
+    const base = fDay.format(now);
+    const evs = S.events;
+    const dl = fLong.format(now);
+    $('dayLabel').textContent = cap(dl) + ' · horários de Lisboa';
+
+    const ageH = (now - new Date(S.data.gerado)) / 3600e3;
+    $('stale').hidden = ageH < 12;
+    if (ageH >= 12) $('stale').innerHTML = `<strong>A agenda não é atualizada há ${Math.floor(ageH)} horas.</strong> Pode faltar algum jogo ou canal.`;
+
+    const live = evs.filter(e => status(e, now) === 'live').sort((a, b) => b.sc - a.sc || a.start - b.start);
+    $('liveCount').textContent = live.length || '';
+    if (live.length) {
+      $('liveBox').innerHTML = `<div class="live-grid">${live.map(e => cardHTML(e, now, 'live')).join('')}</div>`;
+    } else {
+      const next = evs.filter(e => status(e, now) === 'soon').sort((a, b) => b.s - a.s || a.start - b.start)
+        .filter((e, i, arr) => e.start - now < 6 * 3600e3 || i === 0)[0];
+      const nextAny = next || evs.filter(e => now < e.start).sort((a, b) => a.start - b.start)[0];
+      $('liveBox').innerHTML = `<p class="empty">Nada passando agora.${nextAny ? ' O próximo destaque:' : ''}</p>` +
+        (nextAny ? `<div class="live-grid">${cardHTML(nextAny, now, 'next')}</div>` : '');
+    }
+
+    const best = evs.filter(e => e.s >= 2 && tvDay(e.start) === today && status(e, now) === 'soon')
+      .sort((a, b) => b.s - a.s || a.start - b.start).slice(0, 10).sort((a, b) => a.start - b.start);
+    $('bestSec').hidden = !best.length;
+    $('bestBox').innerHTML = best.map(e => rowHTML(e, now, base, 'countdown')).join('');
+
+    const soon = evs.filter(e => status(e, now) === 'soon' && e.start > now && e.start - now <= 3 * 3600e3 && !best.includes(e))
+      .sort((a, b) => a.start - b.start);
+    $('soonSec').hidden = !soon.length;
+    $('soonBox').innerHTML = soon.map(e => rowHTML(e, now, base, 'countdown')).join('');
+
+    const shown = evs.filter(e => matches(e) && tvDay(e.start) >= today);
+    const ended = shown.filter(e => status(e, now) === 'ended');
+    const list = S.showEnded ? shown : shown.filter(e => status(e, now) !== 'ended');
+    const tog = $('endedToggle');
+    tog.hidden = !ended.length;
+    tog.textContent = S.showEnded ? `Esconder os que já acabaram (${ended.length})` : `Mostrar os que já acabaram (${ended.length})`;
+
+    let html = '', lastDay = '', lastHour = '', open = false;
+    for (const e of list) {
+      const d = tvDay(e.start);
+      const hk = fDay.format(e.start) + fHour.format(e.start);
+      if (d !== lastDay) {
+        if (open) { html += '</div>'; open = false; }
+        const lbl = d === today ? 'Hoje' : 'Amanhã · ' + fLong.format(new Date(+e.start)).split(',')[0];
+        html += `<div class="day-label">${esc(cap(lbl))}</div>`;
+        lastDay = d; lastHour = '';
+      }
+      if (hk !== lastHour) {
+        if (open) html += '</div>';
+        const wk = fDay.format(e.start) !== base ? ' · ' + fWk.format(e.start).replace('.', '') : '';
+        html += `<div class="hour-label num">${fHour.format(e.start)}h${wk}</div><div class="list">`;
+        open = true; lastHour = hk;
+      }
+      html += rowHTML(e, now, base);
+    }
+    if (open) html += '</div>';
+    $('dayBox').innerHTML = html || '<p class="empty">Nada mais deste esporte por agora.</p>';
+  }
+
+  // ---------------------------------------------------------------- placar ao vivo (ESPN)
+  const DETAIL = [[/^([\d:.]+) - (\d)(st|nd|rd|th)$/i, '$2º quarto · $1'], [/^([\d:.]+) - OT$/i, 'Prorrogação · $1'], [/^HT$|^Halftime$/i, 'Intervalo'], [/^FT$|^Final$|^Full Time$/i, 'Encerrado'], [/^End of (\d)(st|nd|rd|th)$/i, 'Fim do $1º'],
+    [/^Q(\d) /, '$1º Q '], [/^(\d)(st|nd|rd|th) /, '$1º '], [/OT/, 'Prorrogação'], [/^Delayed$/i, 'Atrasado'], [/^Postponed$/i, 'Adiado']];
+  function ptDetail(s) { for (const [r, t] of DETAIL) if (r.test(s)) return s.replace(r, t); return s; }
+
+  async function poll() {
+    if (!S.events.length) return;
+    const now = Date.now();
+    const need = {};
+    for (const e of S.events) {
+      if (!e.e) continue;
+      const near = now >= +e.start - 15 * 60e3 && now <= +e.end + 2 * 3600e3;
+      const l = S.live[e.id];
+      if (near && !(l && l.state === 'post')) need[e.e.lg + '|' + e.e.d] = e.e;
+    }
+    const keys = Object.keys(need);
+    await Promise.all(keys.map(async k => {
+      const { lg, d } = need[k];
+      try {
+        const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${lg}/scoreboard?dates=${d}&limit=200`);
+        if (!r.ok) return;
+        const js = await r.json();
+        for (const ev of js.events || []) {
+          const c = ev.competitions[0];
+          const home = c.competitors.find(t => t.homeAway === 'home') || c.competitors[0];
+          const away = c.competitors.find(t => t !== home) || c.competitors[1];
+          const st = (c.status || ev.status).type;
+          S.live['espn-' + ev.id] = {
+            state: st.state, detail: st.state === 'in' ? ptDetail(st.shortDetail || '') : '',
+            home: { name: home.team.shortDisplayName || home.team.displayName, score: st.state === 'pre' ? null : home.score },
+            away: { name: away.team.shortDisplayName || away.team.displayName, score: st.state === 'pre' ? null : away.score },
+          };
+        }
+      } catch (err) { /* sem internet ou ESPN fora: segue com a estimativa */ }
+    }));
+    S.lastPoll = now;
+    render();
+  }
+  function anyLive() { const n = new Date(); return S.events.some(e => e.e && status(e, n) === 'live'); }
+  let pollTimer;
+  function schedulePoll() {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(async () => { if (!document.hidden) await poll(); schedulePoll(); }, anyLive() ? 30e3 : 120e3);
+  }
+
+  // ---------------------------------------------------------------- dados
+  async function load() {
+    try {
+      const r = await fetch('data/agenda.json?t=' + Math.floor(Date.now() / 300e3), { cache: 'no-cache' });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      S.data = data;
+      S.events = data.eventos.map(e => Object.assign({}, e, { start: new Date(e.ini), end: new Date(e.fim) }))
+        .sort((a, b) => a.start - b.start || b.sc - a.sc);
+      const g = new Date(data.gerado);
+      $('srcLine').textContent = `Agenda atualizada às ${fTime.format(g)} de ${fLong.format(g)}.`;
+      renderFilters(); render(); poll();
+    } catch (err) {
+      if (!S.data) $('liveBox').innerHTML = '<p class="empty err">Não consegui carregar a agenda. Verifique a internet e recarregue a página.</p>';
+    }
+  }
+
+  $('filters').addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-k]');
+    if (!b) return;
+    S.filter = b.dataset.k;
+    try { localStorage.setItem('natv.filter', S.filter); } catch (e) {}
+    renderFilters(); render();
+  });
+  $('endedToggle').addEventListener('click', () => { S.showEnded = !S.showEnded; render(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { load(); } });
+
+  render();
+  load();
+  setInterval(render, 30e3);
+  setInterval(load, 30 * 60e3);
+  schedulePoll();
+})();
+</script>
+</body>
+</html>

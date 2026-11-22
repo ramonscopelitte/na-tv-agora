@@ -1,0 +1,32 @@
+name: Atualizar agenda
+
+on:
+  schedule:
+    # a cada 3 horas, sempre aos 17 minutos (UTC)
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agenda
+  cancel-in-progress: false
+
+jobs:
+  agenda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Gerar agenda
+        run: python scripts/gerar_agenda.py
+      - name: Salvar se mudou
+        run: |
+          git config user.name "agenda-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/agenda.json
+          git diff --cached --quiet || (git commit -m "Agenda atualizada" && git push)

@@ -1,0 +1,15 @@
+{
+  "name": "Na TV Agora",
+  "short_name": "Na TV",
+  "description": "Agenda esportiva da TV brasileira no horário de Lisboa, com os melhores jogos e o placar ao vivo.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0c1320",
+  "theme_color": "#0c1320",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
